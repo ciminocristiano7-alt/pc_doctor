@@ -5,6 +5,8 @@ crash, stress test, sensori in tempo reale, integrità del sistema operativo e s
 
 Nato per capire perché un PC si riavvia da solo mentre si gioca.
 
+📖 **Guida completa**: [Italiano](docs/GUIDA.md) · [English](docs/GUIDE.md)
+
 ## Cosa fa
 
 | Area | Controlli |
