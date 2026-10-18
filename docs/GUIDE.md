@@ -64,7 +64,7 @@ Runs 9 checks one after another (about 30 seconds; several minutes with `--deep`
 - *4 modules with XMP*: four modules at 3200 MHz or more stress the memory controller and can be unstable.
 - *RAM below rated speed*: XMP is probably disabled.
 
-**2. Graphics card** – driver, temperature, power draw, power limit, PCIe link, throttling (via `nvidia-smi`).
+**2. Graphics card** – driver, temperature, power draw, power limit, PCIe link, throttling. Works with **NVIDIA** GPUs (via `nvidia-smi`), **AMD and Intel** (via LibreHardwareMonitor when running; otherwise only load and video memory from Windows performance counters).
 - *Reduced PCIe link* (e.g. x8 instead of x16): card badly seated or faulty riser.
 - *Power limit maxed out*: the power limit was raised above factory settings.
 - *Hardware throttling*: the GPU slows down because of temperature or insufficient power.
@@ -214,7 +214,7 @@ Keep it open **while gaming**. Every second it records:
 
 | Column | Content |
 |---|---|
-| `cpu_load_pct`, `cpu_mhz`, `cpu_temp_c` | CPU load, average frequency, temperature (admin only) |
+| `cpu_load_pct`, `cpu_mhz`, `cpu_temp_c` | CPU load, average frequency, temperature (with LibreHardwareMonitor running, or as admin) |
 | `ram_used_pct` | RAM in use |
 | `gpu_load_pct`, `gpu_temp_c`, `gpu_power_w`, `gpu_power_limit_w` | GPU load, temperature, power draw and limit |
 | `gpu_clock_mhz`, `gpu_mem_clock_mhz`, `gpu_vram_used_mib`, `gpu_fan_pct`, `gpu_pstate` | clocks, VRAM, fan, power state |
@@ -290,7 +290,7 @@ Everything goes to `%USERPROFILE%\pc-doctor-data` (e.g. `C:\Users\<name>\pc-doct
 - **WHEA errors**: counted, not detailed (error type, core).
 - **RAM test** limited to the memory given to Java; for a full test use MemTest86 from USB.
 - **Minidumps** listed but not analyzed.
-- Detailed sensors for **NVIDIA** GPUs only.
+- **AMD/Intel** GPUs and **Ryzen** CPU temperature: temperature and power only with [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) open (even minimized); otherwise only load and video memory.
 
 ---
 

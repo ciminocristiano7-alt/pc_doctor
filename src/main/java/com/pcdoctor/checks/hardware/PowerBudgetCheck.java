@@ -3,6 +3,7 @@ package com.pcdoctor.checks.hardware;
 import com.pcdoctor.core.DiagnosticCheck;
 import com.pcdoctor.core.Finding;
 import com.pcdoctor.core.Report;
+import com.pcdoctor.sensors.HardwareSensors;
 import com.pcdoctor.util.NvidiaSmi;
 import com.pcdoctor.util.PowerShell;
 
@@ -44,8 +45,15 @@ public class PowerBudgetCheck implements DiagnosticCheck {
                 gpuWatts += (int) Math.round(max);
             }
         }
-        if (gpuWatts == 0) {
-            gpuWatts = 250;
+        if (gpuWatts == 0) { // GPU AMD/Intel: il driver non espone il limite di potenza, si usa il valore tipico del modello
+            String adapter = HardwareSensors.discreteAdapterName();
+            gpuWatts = HardwareSensors.typicalBoardPower(adapter);
+            if (gpuWatts == 0) {
+                gpuWatts = 250;
+                report.data(CAT, "GPU", adapter + " (modello non in tabella: stimati 250 W)");
+            } else {
+                report.data(CAT, "GPU", adapter + " (consumo tipico del modello)");
+            }
         }
         int rest = 75; // scheda madre, RAM, dischi, ventole, USB
         int sustained = cpuWatts + gpuWatts + rest;

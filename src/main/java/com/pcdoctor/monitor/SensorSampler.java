@@ -1,6 +1,7 @@
 package com.pcdoctor.monitor;
 
-import com.pcdoctor.util.NvidiaSmi;
+import com.pcdoctor.sensors.GpuReading;
+import com.pcdoctor.sensors.HardwareSensors;
 import oshi.SystemInfo;
 import oshi.hardware.CentralProcessor;
 import oshi.hardware.GlobalMemory;
@@ -12,9 +13,13 @@ import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
-/** Legge in un colpo solo i sensori di CPU, RAM e GPU. Non thread-safe: un'istanza per thread. */
+/**
+ * Legge in un colpo solo i sensori di CPU, RAM e GPU (NVIDIA, AMD o Intel, vedi {@link HardwareSensors}).
+ * Non thread-safe: un'istanza per thread.
+ */
 public class SensorSampler {
 
     public static final List<String> COLUMNS = List.of(
@@ -27,7 +32,7 @@ public class SensorSampler {
     private final CentralProcessor cpu;
     private final GlobalMemory memory;
     private final Sensors sensors;
-    private final boolean nvidia = NvidiaSmi.available();
+    private final HardwareSensors hardware = new HardwareSensors();
     private long[] previousTicks;
 
     public SensorSampler() {
@@ -38,6 +43,20 @@ public class SensorSampler {
         this.previousTicks = cpu.getSystemCpuLoadTicks();
     }
 
+    /** Fonti dei sensori in uso, da mostrare all'utente. */
+    public String sourcesDescription() {
+        if (hardware.hasNvidiaSmi() && hardware.hasLibreHardwareMonitor()) {
+            return "nvidia-smi + LibreHardwareMonitor";
+        }
+        if (hardware.hasNvidiaSmi()) {
+            return "nvidia-smi (temperatura CPU solo con LibreHardwareMonitor o da amministratore)";
+        }
+        if (hardware.hasLibreHardwareMonitor()) {
+            return "LibreHardwareMonitor";
+        }
+        return "contatori di Windows (per temperature e consumi avvia LibreHardwareMonitor)";
+    }
+
     public Map<String, String> sample() {
         Map<String, String> row = new LinkedHashMap<>();
         row.put("time", LocalDateTime.now().format(TIME));
@@ -46,27 +65,32 @@ public class SensorSampler {
         row.put("cpu_load_pct", fmt(load));
         long[] freqs = cpu.getCurrentFreq();
         row.put("cpu_mhz", fmt(Arrays.stream(freqs).average().orElse(0) / 1_000_000));
+
+        HardwareSensors.Sample hw = hardware.sample();
         double temp = sensors.getCpuTemperature();
+        if (!(temp > 0 && temp < 150)) {
+            temp = hw.cpuTempC();
+        }
         row.put("cpu_temp_c", temp > 0 && temp < 150 ? fmt(temp) : "");
         double used = 1 - (double) memory.getAvailable() / memory.getTotal();
         row.put("ram_used_pct", fmt(used * 100));
 
-        Map<String, String> gpu = nvidia ? NvidiaSmi.query().stream().findFirst().orElse(Map.of()) : Map.of();
-        row.put("gpu_load_pct", gpu.getOrDefault("utilization.gpu", ""));
-        row.put("gpu_temp_c", gpu.getOrDefault("temperature.gpu", ""));
-        row.put("gpu_power_w", gpu.getOrDefault("power.draw", ""));
-        row.put("gpu_power_limit_w", gpu.getOrDefault("power.limit", ""));
-        row.put("gpu_clock_mhz", gpu.getOrDefault("clocks.gr", ""));
-        row.put("gpu_mem_clock_mhz", gpu.getOrDefault("clocks.mem", ""));
-        row.put("gpu_vram_used_mib", gpu.getOrDefault("memory.used", ""));
-        row.put("gpu_fan_pct", gpu.getOrDefault("fan.speed", ""));
-        row.put("gpu_pstate", gpu.getOrDefault("pstate", ""));
-        row.put("gpu_throttle", String.join("+",
-                NvidiaSmi.throttleReasons(gpu.getOrDefault("clocks_event_reasons.active", "0x0"))));
+        GpuReading gpu = hw.mainGpu().orElse(null);
+        row.put("gpu_load_pct", gpu == null ? "" : fmt(gpu.loadPct()));
+        row.put("gpu_temp_c", gpu == null ? "" : fmt(gpu.tempC()));
+        row.put("gpu_power_w", gpu == null ? "" : fmt(gpu.powerW()));
+        row.put("gpu_power_limit_w", gpu == null ? "" : fmt(gpu.powerLimitW()));
+        row.put("gpu_clock_mhz", gpu == null ? "" : fmt(gpu.clockMhz()));
+        row.put("gpu_mem_clock_mhz", gpu == null ? "" : fmt(gpu.memClockMhz()));
+        row.put("gpu_vram_used_mib", gpu == null ? "" : fmt(gpu.vramUsedMib()));
+        row.put("gpu_fan_pct", gpu == null ? "" : fmt(gpu.fanPct()));
+        row.put("gpu_pstate", gpu == null ? "" : gpu.pstate());
+        row.put("gpu_throttle", gpu == null ? "" : gpu.throttle());
         return row;
     }
 
+    /** Formatta con un decimale; stringa vuota per i valori non disponibili. */
     private static String fmt(double value) {
-        return String.format(java.util.Locale.ROOT, "%.1f", value);
+        return Double.isNaN(value) ? "" : String.format(Locale.ROOT, "%.1f", value);
     }
 }

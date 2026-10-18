@@ -47,6 +47,7 @@ public class SensorMonitor implements AutoCloseable {
 
     private void loop() {
         SensorSampler sampler = new SensorSampler();
+        System.out.println("Fonti sensori: " + sampler.sourcesDescription());
         try (FileOutputStream fos = new FileOutputStream(csv.toFile(), true);
              Writer out = new OutputStreamWriter(fos, StandardCharsets.UTF_8)) {
             if (csv.toFile().length() == 0) {

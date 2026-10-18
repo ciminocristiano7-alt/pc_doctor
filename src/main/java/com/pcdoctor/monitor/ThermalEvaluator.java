@@ -28,7 +28,7 @@ public final class ThermalEvaluator {
         String section = "Picchi " + context;
         report.data(section, "Campioni", String.valueOf(rows.size()));
         report.data(section, "CPU carico max", fmt(cpuLoad) + " %");
-        report.data(section, "CPU temperatura max", Double.isNaN(cpuTemp) ? "non disponibile (serve admin)" : fmt(cpuTemp) + " °C");
+        report.data(section, "CPU temperatura max", Double.isNaN(cpuTemp) ? "non disponibile (avvia LibreHardwareMonitor o pc-doctor da amministratore)" : fmt(cpuTemp) + " °C");
         report.data(section, "GPU temperatura max", fmt(gpuTemp) + " °C");
         report.data(section, "GPU consumo max", fmt(gpuPower) + " W");
         report.data(section, "RAM usata max", fmt(peaks.peak("ram_used_pct")) + " %");

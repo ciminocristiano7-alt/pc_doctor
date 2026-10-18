@@ -12,7 +12,7 @@ Nato per capire perché un PC si riavvia da solo mentre si gioca.
 | Area | Controlli |
 |---|---|
 | **Crash** | Analizza il registro eventi: Kernel-Power 41, schermate blu (con codice e significato), errori hardware WHEA, reset del driver video. Incrocia i dati e propone la causa probabile. |
-| **Hardware** | CPU, scheda madre, età del BIOS, moduli RAM (kit misti, 4 banchi con XMP), GPU NVIDIA (temperatura, power limit, link PCIe, throttling), salute dei dischi (SMART), spazio libero. |
+| **Hardware** | CPU, scheda madre, età del BIOS, moduli RAM (kit misti, 4 banchi con XMP), GPU **NVIDIA, AMD e Intel** (temperatura, consumo, power limit, link PCIe, throttling), salute dei dischi (SMART), spazio libero. |
 | **Alimentazione** | Stima consumo sostenuto e picchi transitori della GPU e li confronta con l'alimentatore (`--psu-watt`, `--psu-model`). Il comando `psu` analizza anche i log di HWiNFO: tensioni rispetto alle tolleranze ATX, cali sotto carico, spegnimenti a pieno carico. |
 | **Stress test** | CPU (calcoli verificati: un risultato sbagliato significa instabilità), RAM (schemi di bit scritti e riletti), disco (scrittura/lettura verificata), oppure tutti insieme per caricare l'intero sistema. |
 | **Monitor** | Registra ogni secondo carico, frequenze, temperature e consumo su CSV, scrivendo subito su disco: dopo un riavvio improvviso si vedono gli ultimi valori prima del crash. |
@@ -23,7 +23,11 @@ Nato per capire perché un PC si riavvia da solo mentre si gioca.
 - Windows 10/11
 - JDK 21 o superiore. Se manca, `pc-doctor.cmd` lo cerca e propone di installarlo con winget.
   Maven non serve: il progetto include il Maven Wrapper.
-- Per le GPU NVIDIA: `nvidia-smi`, installato insieme al driver
+- Sensori:
+  - GPU **NVIDIA**: `nvidia-smi`, installato insieme al driver;
+  - GPU **AMD/Intel** e temperatura delle CPU **Ryzen**: [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor)
+    in esecuzione (pc-doctor legge i suoi sensori via WMI);
+  - senza nessuno dei due, carico e memoria video arrivano dai contatori di Windows (qualsiasi GPU).
 
 ## Uso
 
@@ -71,6 +75,7 @@ com.pcdoctor
 ├── stress              stress test CPU, RAM, disco, combinato
 ├── monitor             campionamento sensori, log CSV, analisi
 ├── hwinfo              lettura dei log CSV di HWiNFO, analisi dell'alimentazione
+├── sensors             sensori GPU/CPU multi-produttore (nvidia-smi, LibreHardwareMonitor, contatori Windows)
 ├── report              output console, HTML, JSON
 └── util                PowerShell, nvidia-smi, cartelle dati
 ```

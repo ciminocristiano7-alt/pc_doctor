@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.pcdoctor.core.DiagnosticCheck;
 import com.pcdoctor.core.Finding;
 import com.pcdoctor.core.Report;
+import com.pcdoctor.sensors.GpuReading;
+import com.pcdoctor.sensors.HardwareSensors;
 import com.pcdoctor.util.Json;
 import com.pcdoctor.util.NvidiaSmi;
 import com.pcdoctor.util.PowerShell;
@@ -40,8 +42,7 @@ public class GpuCheck implements DiagnosticCheck {
         }
 
         if (!NvidiaSmi.available()) {
-            report.add(Finding.info(CAT, "nvidia-smi non disponibile",
-                    "Sensori dettagliati disponibili solo per GPU NVIDIA."));
+            analyzeOtherVendors(report);
             return;
         }
         for (Map<String, String> gpu : NvidiaSmi.query()) {
@@ -96,6 +97,51 @@ public class GpuCheck implements DiagnosticCheck {
         reasons.stream().filter(r -> r.startsWith("HW")).forEach(r ->
                 report.add(Finding.critical(CAT, "Throttling hardware attivo: " + r, "",
                         "Il rallentamento hardware indica problemi di temperatura o di alimentazione della GPU.")));
+    }
+
+    /** GPU AMD/Intel: sensori da LibreHardwareMonitor se in esecuzione, altrimenti solo carico e VRAM da Windows. */
+    private void analyzeOtherVendors(Report report) {
+        HardwareSensors.Sample sample = new HardwareSensors().sample();
+        if (sample.gpus().isEmpty()) {
+            report.add(Finding.info(CAT, "Sensori della GPU non disponibili",
+                    "Per temperatura e consumo di GPU AMD/Intel avviare LibreHardwareMonitor prima di pc-doctor."));
+            return;
+        }
+        for (GpuReading gpu : sample.gpus()) {
+            String section = "GPU " + gpu.name();
+            report.data(section, "Fonte dati", gpu.source());
+            report.data(section, "Carico", fmt(gpu.loadPct(), "%"));
+            report.data(section, "Temperatura (core / hotspot)", fmt(gpu.tempC(), "°C") + " / " + fmt(gpu.hotspotC(), "°C"));
+            report.data(section, "Consumo", fmt(gpu.powerW(), "W"));
+            report.data(section, "Frequenza (core / memoria)", fmt(gpu.clockMhz(), "MHz") + " / " + fmt(gpu.memClockMhz(), "MHz"));
+            report.data(section, "Memoria video usata", fmt(gpu.vramUsedMib(), "MiB"));
+            report.data(section, "Ventola", fmt(gpu.fanPct(), "%"));
+            if (!gpu.hasThermalData()) {
+                report.add(Finding.info(CAT, gpu.name() + ": temperatura e consumo non disponibili",
+                        "Windows espone solo carico e memoria video. Per i sensori completi delle GPU AMD/Intel "
+                                + "avviare LibreHardwareMonitor (librehardwaremonitor.org) prima di pc-doctor."));
+                continue;
+            }
+            double hottest = Math.max(nanToZero(gpu.tempC()), nanToZero(gpu.hotspotC()) - 15);
+            if (hottest >= 90) {
+                report.add(Finding.critical(CAT, gpu.name() + " troppo calda: " + fmt(gpu.tempC(), "°C")
+                                + " (hotspot " + fmt(gpu.hotspotC(), "°C") + ")", "",
+                        "Pulire la scheda dalla polvere, verificare le ventole e il flusso d'aria del case."));
+            } else if (hottest >= 75) {
+                report.add(Finding.warning(CAT, gpu.name() + " calda: " + fmt(gpu.tempC(), "°C"), "Rilevazione istantanea.",
+                        "Verificare le temperature sotto carico con 'pc-doctor monitor'."));
+            } else {
+                report.add(Finding.ok(CAT, gpu.name() + " temperatura attuale " + fmt(gpu.tempC(), "°C"), gpu.source()));
+            }
+        }
+    }
+
+    private static double nanToZero(double v) {
+        return Double.isNaN(v) ? 0 : v;
+    }
+
+    private static String fmt(double v, String unit) {
+        return Double.isNaN(v) ? "n/d" : String.format(java.util.Locale.ROOT, "%.0f %s", v, unit);
     }
 
     private void checkTdrSettings(Report report) {

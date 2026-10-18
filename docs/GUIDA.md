@@ -62,7 +62,7 @@ Esegue 9 controlli uno dopo l'altro (circa 30 secondi; diversi minuti con `--dee
 - *4 banchi con XMP*: quattro moduli a 3200 MHz o più caricano il controller di memoria e possono essere instabili.
 - *RAM sotto la velocità nominale*: XMP probabilmente disattivato.
 
-**2. Scheda video** – driver, temperatura, consumo, limite di potenza, link PCIe, throttling (via `nvidia-smi`).
+**2. Scheda video** – driver, temperatura, consumo, limite di potenza, link PCIe, throttling. Funziona con GPU **NVIDIA** (via `nvidia-smi`), **AMD e Intel** (via LibreHardwareMonitor, se in esecuzione; altrimenti solo carico e memoria video dai contatori di Windows).
 - *Link PCIe ridotto* (es. x8 invece di x16): scheda inserita male o riser difettoso.
 - *Power limit al massimo*: il limite di potenza è stato alzato rispetto alla fabbrica.
 - *Throttling hardware*: la GPU rallenta per temperatura o alimentazione insufficiente.
@@ -212,7 +212,7 @@ Lascialo aperto **mentre giochi**. Ogni secondo registra:
 
 | Colonna | Contenuto |
 |---|---|
-| `cpu_load_pct`, `cpu_mhz`, `cpu_temp_c` | carico, frequenza media, temperatura CPU (solo admin) |
+| `cpu_load_pct`, `cpu_mhz`, `cpu_temp_c` | carico, frequenza media, temperatura CPU (con LibreHardwareMonitor in esecuzione, oppure da admin) |
 | `ram_used_pct` | RAM occupata |
 | `gpu_load_pct`, `gpu_temp_c`, `gpu_power_w`, `gpu_power_limit_w` | carico, temperatura, consumo e limite della GPU |
 | `gpu_clock_mhz`, `gpu_mem_clock_mhz`, `gpu_vram_used_mib`, `gpu_fan_pct`, `gpu_pstate` | frequenze, VRAM, ventola, stato energetico |
@@ -288,7 +288,7 @@ Tutto in `%USERPROFILE%\pc-doctor-data` (es. `C:\Users\<nome>\pc-doctor-data`):
 - **Errori WHEA**: viene contato il numero, non il dettaglio (tipo di errore, core).
 - **Test RAM** limitato alla memoria assegnata a Java; per un test completo usare MemTest86 da USB.
 - **Minidump** elencati ma non analizzati.
-- Solo GPU **NVIDIA** per i sensori dettagliati.
+- GPU **AMD/Intel** e temperatura delle CPU **Ryzen**: temperatura e consumo solo con [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) aperto (anche ridotto a icona); senza, solo carico e memoria video.
 
 ---
 
