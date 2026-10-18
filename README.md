@@ -13,7 +13,7 @@ Nato per capire perché un PC si riavvia da solo mentre si gioca.
 |---|---|
 | **Crash** | Analizza il registro eventi: Kernel-Power 41, schermate blu (con codice e significato), errori hardware WHEA, reset del driver video. Incrocia i dati e propone la causa probabile. |
 | **Hardware** | CPU, scheda madre, età del BIOS, moduli RAM (kit misti, 4 banchi con XMP), GPU NVIDIA (temperatura, power limit, link PCIe, throttling), salute dei dischi (SMART), spazio libero. |
-| **Alimentazione** | Stima consumo sostenuto e picchi transitori della GPU e li confronta con l'alimentatore (`--psu-watt`, `--psu-model`). |
+| **Alimentazione** | Stima consumo sostenuto e picchi transitori della GPU e li confronta con l'alimentatore (`--psu-watt`, `--psu-model`). Il comando `psu` analizza anche i log di HWiNFO: tensioni rispetto alle tolleranze ATX, cali sotto carico, spegnimenti a pieno carico. |
 | **Stress test** | CPU (calcoli verificati: un risultato sbagliato significa instabilità), RAM (schemi di bit scritti e riletti), disco (scrittura/lettura verificata), oppure tutti insieme per caricare l'intero sistema. |
 | **Monitor** | Registra ogni secondo carico, frequenze, temperature e consumo su CSV, scrivendo subito su disco: dopo un riavvio improvviso si vedono gli ultimi valori prima del crash. |
 | **Software** | Integrità di Windows (DISM, SFC con `--deep`), dispositivi con errori, aggiornamenti, Microsoft Defender (stato, minacce, scansione), firewall, programmi in avvio e processi non firmati in cartelle a rischio. |
@@ -21,14 +21,18 @@ Nato per capire perché un PC si riavvia da solo mentre si gioca.
 ## Requisiti
 
 - Windows 10/11
-- JDK 21 (Maven non serve: il progetto include il Maven Wrapper)
+- JDK 21 o superiore. Se manca, `pc-doctor.cmd` lo cerca e propone di installarlo con winget.
+  Maven non serve: il progetto include il Maven Wrapper.
 - Per le GPU NVIDIA: `nvidia-smi`, installato insieme al driver
 
 ## Uso
 
+In **PowerShell** scrivi `.\pc-doctor.cmd` (con `.\` davanti); nel Prompt dei comandi basta `pc-doctor.cmd`.
+
 ```bat
 pc-doctor.cmd scan --psu-watt 850 --psu-model "Tecnoware 850W"
 pc-doctor.cmd crashes
+pc-doctor.cmd psu --psu-watt 850 --hwinfo C:\percorso\log_hwinfo.CSV
 pc-doctor.cmd stress all --minutes 15
 pc-doctor.cmd monitor
 pc-doctor.cmd analyze-log
@@ -66,6 +70,7 @@ com.pcdoctor
 ├── checks.software     integrità Windows, sicurezza, file sospetti, driver
 ├── stress              stress test CPU, RAM, disco, combinato
 ├── monitor             campionamento sensori, log CSV, analisi
+├── hwinfo              lettura dei log CSV di HWiNFO, analisi dell'alimentazione
 ├── report              output console, HTML, JSON
 └── util                PowerShell, nvidia-smi, cartelle dati
 ```
@@ -75,7 +80,7 @@ Per aggiungere un controllo: implementa `DiagnosticCheck` e registralo in `PcDoc
 ## Roadmap
 
 - Stress test GPU (OpenGL/Vulkan via LWJGL) da eseguire insieme al monitor
-- Lettura delle tensioni (12V, Vcore) tramite LibreHardwareMonitor
+- Lettura diretta delle tensioni (12V, Vcore) tramite LibreHardwareMonitor, senza passare da HWiNFO
 - Analisi automatica dei minidump (`cdb`/WinDbg)
 - Avvio automatico del monitor all'accesso (attività pianificata)
 - Interfaccia grafica (JavaFX)

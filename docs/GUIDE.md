@@ -8,6 +8,7 @@ For installation and development see the [README](../README.md). *Versione itali
 - [Getting started](#getting-started)
 - [scan – full diagnosis](#scan--full-diagnosis)
 - [crashes – crash history only](#crashes--crash-history-only)
+- [psu – power supply analysis](#psu--power-supply-analysis)
 - [stress – stress tests](#stress--stress-tests)
 - [monitor – the black box](#monitor--the-black-box)
 - [analyze-log – reading a log](#analyze-log--reading-a-log)
@@ -28,9 +29,13 @@ pc-doctor.cmd --help              :: list of commands
 pc-doctor.cmd <command> --help    :: options of a command
 ```
 
-On first run the script builds the project. To enable every check (disk SMART, DISM/SFC, CPU temperature)
-open the terminal **as administrator**: Start → `cmd` → right click → *Run as administrator*,
-then `cd %USERPROFILE%\Documents\pc-doctor`.
+In **PowerShell** prefix commands with `.\`: `.\pc-doctor.cmd --help`.
+
+On first run the script builds the project (internet required, 1-2 minutes). It needs **JDK 21** or newer:
+if it only finds a JRE or an older version, it offers to install the JDK with winget.
+
+To enable every check (disk SMART, DISM/SFC, CPU temperature) open the terminal **as administrator**:
+Start → `cmd` → right click → *Run as administrator*, then `cd %USERPROFILE%\Documents\pc-doctor`.
 
 ---
 
@@ -109,6 +114,46 @@ pc-doctor.cmd crashes --days 30
 ```
 
 Runs check 5 only and also prints the full list of events, blue screens and minidumps.
+
+---
+
+## psu – power supply analysis
+
+```bat
+pc-doctor.cmd psu --psu-watt 850 --psu-model "Tecnoware 850W"
+pc-doctor.cmd psu --psu-watt 850 --hwinfo C:\Users\<name>\Documents\power.CSV
+```
+
+No software can read the power supply directly: the command infers its condition from power draw,
+voltages and sudden shutdowns.
+
+| Option | Default | Meaning |
+|---|---|---|
+| `--psu-watt` | 0 | power supply wattage |
+| `--psu-model` | empty | brand and model |
+| `--hwinfo` | none | HWiNFO CSV log to analyze |
+| `--days` | 90 | days of event log to analyze |
+
+It always runs the **power budget** and the **crash history** (shutdowns without a blue screen are the typical
+sign of power problems). With `--hwinfo` it also analyzes the log:
+
+- **Voltages** +12V (motherboard), GPU +12V (12VHPWR/16-pin connector and PCIe slot), +5V, +3.3V:
+  minimum, maximum, average and minimum under load, compared with ATX tolerances (±5%: 12V between 11.40 and 12.60 V).
+  Below 11.60 V the rail is flagged as weak.
+- **Droop under load**: difference between the average idle voltage and the minimum at full load (warning above 2.5%).
+- **Measured power** of CPU and GPU (+ about 75 W for the rest) compared with the PSU wattage.
+- **End of the log**: if recording stops without being closed and Windows logs a Kernel-Power 41 right after,
+  the PC shut down during the log. If the load was high at that moment it is reported as a
+  **shutdown at full load** and the last samples are shown.
+
+### How to record the right log
+1. HWiNFO → *Sensors* → in *Settings* set **Polling period** to 500 ms or less (voltage dips last milliseconds).
+2. Start logging (floppy icon at the bottom) and save the CSV.
+3. Load the PC: **OCCT Power** for 15-30 minutes, or a demanding game.
+4. Stop logging and run `pc-doctor.cmd psu --hwinfo <file>`.
+
+> Motherboard voltage sensors can be off by a few tenths of a volt: an out-of-range value should be confirmed
+> with a multimeter or by trying another power supply.
 
 ---
 
@@ -240,7 +285,7 @@ Everything goes to `%USERPROFILE%\pc-doctor-data` (e.g. `C:\Users\<name>\pc-doct
 ## Current limitations
 
 - **CPU temperature**: readable only as administrator and not on every system (often unavailable on Ryzen).
-- **Voltages** (+12V, Vcore, 12VHPWR): not read; HWiNFO is needed for now.
+- **Voltages** (+12V, Vcore, 12VHPWR): not read directly; analyze HWiNFO logs with `psu --hwinfo`.
 - **No GPU stress test**: use OCCT (3D Adaptive or Power).
 - **WHEA errors**: counted, not detailed (error type, core).
 - **RAM test** limited to the memory given to Java; for a full test use MemTest86 from USB.
@@ -260,6 +305,7 @@ Everything goes to `%USERPROFILE%\pc-doctor-data` (e.g. `C:\Users\<name>\pc-doct
    - CPU + GPU together (OCCT Power).
 5. Play normally with `pc-doctor.cmd monitor` open.
 6. After a reboot: `pc-doctor.cmd monitor` (or `analyze-log`) and `pc-doctor.cmd crashes`.
+   If HWiNFO was logging: `pc-doctor.cmd psu --hwinfo <file>`.
 
 How to read the outcome:
 

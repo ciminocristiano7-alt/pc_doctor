@@ -6,6 +6,7 @@ Per l'installazione e lo sviluppo vedi il [README](../README.md). *English versi
 - [Avvio](#avvio)
 - [scan – diagnosi completa](#scan--diagnosi-completa)
 - [crashes – solo storico crash](#crashes--solo-storico-crash)
+- [psu – analisi dell'alimentatore](#psu--analisi-dellalimentatore)
 - [stress – stress test](#stress--stress-test)
 - [monitor – la scatola nera](#monitor--la-scatola-nera)
 - [analyze-log – leggere un log](#analyze-log--leggere-un-log)
@@ -26,9 +27,13 @@ pc-doctor.cmd --help              :: elenco dei comandi
 pc-doctor.cmd <comando> --help    :: opzioni di un comando
 ```
 
-Al primo avvio lo script compila il progetto. Per avere tutti i controlli (SMART dei dischi, DISM/SFC,
-temperatura CPU) apri il terminale **come amministratore**: Start → `cmd` → tasto destro → *Esegui come amministratore*,
-poi `cd %USERPROFILE%\Documents\pc-doctor`.
+In **PowerShell** i comandi vanno scritti con `.\` davanti: `.\pc-doctor.cmd --help`.
+
+Al primo avvio lo script compila il progetto (serve internet, 1-2 minuti). Serve il **JDK 21** o superiore:
+se trova solo un JRE o una versione vecchia, propone di installare il JDK con winget.
+
+Per avere tutti i controlli (SMART dei dischi, DISM/SFC, temperatura CPU) apri il terminale **come amministratore**:
+Start → `cmd` → tasto destro → *Esegui come amministratore*, poi `cd %USERPROFILE%\Documents\pc-doctor`.
 
 ---
 
@@ -107,6 +112,46 @@ pc-doctor.cmd crashes --days 30
 ```
 
 Esegue solo il controllo n. 5 e mostra anche l'elenco completo di eventi, schermate blu e minidump.
+
+---
+
+## psu – analisi dell'alimentatore
+
+```bat
+pc-doctor.cmd psu --psu-watt 850 --psu-model "Tecnoware 850W"
+pc-doctor.cmd psu --psu-watt 850 --hwinfo C:\Users\<nome>\Documents\power.CSV
+```
+
+Nessun software può leggere direttamente l'alimentatore: il comando ne deduce lo stato da consumi,
+tensioni e spegnimenti improvvisi.
+
+| Opzione | Default | Significato |
+|---|---|---|
+| `--psu-watt` | 0 | watt dell'alimentatore |
+| `--psu-model` | vuoto | marca e modello |
+| `--hwinfo` | nessuno | log CSV di HWiNFO da analizzare |
+| `--days` | 90 | giorni di registro eventi da analizzare |
+
+Esegue sempre il **bilancio energetico** e lo **storico crash** (gli spegnimenti senza schermata blu sono il
+segno tipico di problemi di alimentazione). Con `--hwinfo` analizza anche il log:
+
+- **Tensioni** +12V (scheda madre), +12V della GPU (connettore 12VHPWR/16-pin e slot PCIe), +5V, +3.3V:
+  minimo, massimo, media e minimo sotto carico, confrontati con le tolleranze ATX (±5%: 12V tra 11,40 e 12,60 V).
+  Sotto 11,60 V viene segnalata una tensione debole.
+- **Calo sotto carico**: differenza tra la tensione media a riposo e la minima a pieno carico (avviso oltre il 2,5%).
+- **Consumo misurato** di CPU e GPU (+ circa 75 W per il resto) confrontato con i watt dell'alimentatore.
+- **Fine del log**: se la registrazione si interrompe senza essere chiusa e subito dopo Windows registra un
+  Kernel-Power 41, il PC si è spento durante il log. Se in quel momento il carico era alto viene segnalato come
+  **spegnimento a pieno carico** e vengono mostrati gli ultimi campioni.
+
+### Come registrare il log giusto
+1. HWiNFO → *Sensors* → in *Settings* imposta **Polling period** a 500 ms o meno (i cali durano pochi millisecondi).
+2. Avvia la registrazione (icona del floppy in basso) e salva il CSV.
+3. Metti il PC sotto carico: **OCCT Power** per 15-30 minuti, oppure un gioco pesante.
+4. Ferma la registrazione e lancia `pc-doctor.cmd psu --hwinfo <file>`.
+
+> I sensori di tensione della scheda madre possono sbagliare di qualche decimo di volt: un valore fuori
+> tolleranza va confermato con un multimetro o provando un altro alimentatore.
 
 ---
 
@@ -238,7 +283,7 @@ Tutto in `%USERPROFILE%\pc-doctor-data` (es. `C:\Users\<nome>\pc-doctor-data`):
 ## Limiti attuali
 
 - **Temperatura CPU**: leggibile solo da amministratore e non su tutti i sistemi (sui Ryzen spesso non disponibile).
-- **Tensioni** (+12V, Vcore, 12VHPWR): non vengono lette; per ora serve HWiNFO.
+- **Tensioni** (+12V, Vcore, 12VHPWR): non vengono lette direttamente; si analizzano dai log di HWiNFO con `psu --hwinfo`.
 - **Nessuno stress test della GPU**: usare OCCT (3D Adaptive o Power).
 - **Errori WHEA**: viene contato il numero, non il dettaglio (tipo di errore, core).
 - **Test RAM** limitato alla memoria assegnata a Java; per un test completo usare MemTest86 da USB.
@@ -258,6 +303,7 @@ Tutto in `%USERPROFILE%\pc-doctor-data` (es. `C:\Users\<nome>\pc-doctor-data`):
    - CPU + GPU insieme (OCCT Power).
 5. Gioca normalmente con `pc-doctor.cmd monitor` aperto.
 6. Dopo un riavvio: `pc-doctor.cmd monitor` (o `analyze-log`) e `pc-doctor.cmd crashes`.
+   Se stavi registrando con HWiNFO: `pc-doctor.cmd psu --hwinfo <file>`.
 
 Come leggere l'esito:
 

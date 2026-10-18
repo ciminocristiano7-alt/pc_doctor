@@ -12,6 +12,7 @@ import com.pcdoctor.checks.software.SystemIntegrityCheck;
 import com.pcdoctor.core.CheckRunner;
 import com.pcdoctor.core.DiagnosticCheck;
 import com.pcdoctor.core.Report;
+import com.pcdoctor.hwinfo.HwinfoPowerCheck;
 import com.pcdoctor.monitor.MonitorLogAnalyzer;
 import com.pcdoctor.monitor.SensorMonitor;
 import com.pcdoctor.monitor.ThermalEvaluator;
@@ -44,7 +45,7 @@ import java.util.concurrent.Callable;
 
 @Command(name = "pc-doctor", mixinStandardHelpOptions = true, version = "pc-doctor 0.1.0",
         description = "Diagnostica hardware e software a 360 gradi per Windows.",
-        subcommands = {PcDoctor.Scan.class, PcDoctor.Crashes.class, PcDoctor.Stress.class,
+        subcommands = {PcDoctor.Scan.class, PcDoctor.Crashes.class, PcDoctor.Psu.class, PcDoctor.Stress.class,
                 PcDoctor.Monitor.class, PcDoctor.AnalyzeLog.class, PcDoctor.Full.class})
 public class PcDoctor implements Runnable {
 
@@ -145,6 +146,40 @@ public class PcDoctor implements Runnable {
             Report report = new Report();
             CheckRunner.runAll(List.of(new CrashHistoryCheck(days)), report, System.out);
             ConsoleReport.print(report, System.out, true);
+            return 0;
+        }
+    }
+
+    @Command(name = "psu", description = {
+            "Analisi dell'alimentatore: consumi stimati, spegnimenti improvvisi e, con --hwinfo, tensioni",
+            "e cali registrati da HWiNFO (ideale durante OCCT Power o un gioco pesante)."})
+    static class Psu implements Callable<Integer> {
+        @Option(names = "--psu-watt", defaultValue = "0", description = "Watt dell'alimentatore (es. 850)")
+        int psuWatt;
+        @Option(names = "--psu-model", defaultValue = "", description = "Marca/modello dell'alimentatore")
+        String psuModel;
+        @Option(names = "--hwinfo", description = "Log CSV di HWiNFO da analizzare")
+        Path hwinfo;
+        @Option(names = "--days", defaultValue = "90", description = "Giorni di registro eventi da analizzare (default: ${DEFAULT-VALUE})")
+        int days;
+
+        @Override
+        public Integer call() throws IOException {
+            Report report = new Report();
+            List<DiagnosticCheck> checks = new ArrayList<>(List.of(
+                    new PowerBudgetCheck(psuWatt, psuModel), new CrashHistoryCheck(days)));
+            if (hwinfo != null) {
+                checks.add(new HwinfoPowerCheck(hwinfo, psuWatt));
+            } else {
+                System.out.println("Suggerimento: aggiungi --hwinfo <file.CSV> con un log di HWiNFO registrato sotto carico");
+                System.out.println("per analizzare le tensioni dell'alimentatore.");
+                System.out.println();
+            }
+            CheckRunner.runAll(checks, report, System.out);
+            ConsoleReport.print(report, System.out, hwinfo != null);
+            Path html = FileReport.write(report, DataDir.reports());
+            System.out.println();
+            System.out.println("Report completo: " + html);
             return 0;
         }
     }
