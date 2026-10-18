@@ -4,6 +4,7 @@ import com.pcdoctor.core.DiagnosticCheck;
 import com.pcdoctor.core.Finding;
 import com.pcdoctor.core.Report;
 import com.pcdoctor.sensors.HardwareSensors;
+import com.pcdoctor.sensors.PowerSupply;
 import com.pcdoctor.util.NvidiaSmi;
 import com.pcdoctor.util.PowerShell;
 
@@ -12,8 +13,8 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Stima il consumo massimo del sistema e lo confronta con l'alimentatore dichiarato dall'utente.
- * Windows non può leggere l'alimentatore: watt e marca vanno passati con --psu-watt e --psu-model.
+ * Stima il consumo massimo del sistema e lo confronta con l'alimentatore (vedi {@link PowerSupply}:
+ * salvato in configurazione, rilevato o chiesto all'utente).
  */
 public class PowerBudgetCheck implements DiagnosticCheck {
 
@@ -23,10 +24,12 @@ public class PowerBudgetCheck implements DiagnosticCheck {
 
     private final int psuWatts;
     private final String psuModel;
+    private final String psuSource;
 
-    public PowerBudgetCheck(int psuWatts, String psuModel) {
-        this.psuWatts = psuWatts;
-        this.psuModel = psuModel == null ? "" : psuModel;
+    public PowerBudgetCheck(PowerSupply psu) {
+        this.psuWatts = psu.watts();
+        this.psuModel = psu.model();
+        this.psuSource = psu.source();
     }
 
     @Override
@@ -67,10 +70,10 @@ public class PowerBudgetCheck implements DiagnosticCheck {
         if (psuWatts <= 0) {
             report.add(Finding.info(CAT, "Alimentatore non specificato",
                     "Consumo sostenuto ~" + sustained + " W, picchi ~" + peak
-                            + " W. Usa --psu-watt e --psu-model per confrontarli con il tuo alimentatore."));
+                            + " W. Indica il tuo alimentatore con: pc-doctor config --psu-watt 850 --psu-model \"...\""));
             return;
         }
-        report.data(CAT, "Alimentatore dichiarato", psuWatts + " W " + psuModel);
+        report.data(CAT, "Alimentatore", psuWatts + " W " + psuModel + " (" + psuSource + ")");
 
         if (sustained > psuWatts * 0.9) {
             report.add(Finding.critical(CAT, "Alimentatore sottodimensionato",

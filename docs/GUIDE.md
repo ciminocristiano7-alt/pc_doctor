@@ -31,6 +31,21 @@ pc-doctor.cmd <command> --help    :: options of a command
 
 In **PowerShell** prefix commands with `.\`: `.\pc-doctor.cmd --help`.
 
+### The power supply
+
+Windows cannot read the power supply. The first time it is needed, pc-doctor **asks** for it (brand/model and wattage:
+if the name contains the wattage, like "Tecnoware 850W", it is extracted automatically) and **remembers** it in
+`%USERPROFILE%\pc-doctor-data\config.properties`. USB-connected units (Corsair HXi/RMi/AXi, NZXT…) are
+**detected automatically** when LibreHardwareMonitor is running.
+
+```bat
+pc-doctor.cmd config                                    :: show the saved power supply
+pc-doctor.cmd config --psu-model "Corsair RM1000x"      :: change it (wattage taken from the name)
+pc-doctor.cmd config --psu-watt 1000 --psu-model "..."  :: explicit wattage
+pc-doctor.cmd config --detect                           :: forget it and detect/ask again
+```
+
+The `--psu-watt` and `--psu-model` options of `scan` and `psu` are still available and update the saved value.
 On first run the script builds the project (internet required, 1-2 minutes). It needs **JDK 21** or newer:
 if it only finds a JRE or an older version, it offers to install the JDK with winget.
 
@@ -42,7 +57,7 @@ Start → `cmd` → right click → *Run as administrator*, then `cd %USERPROFIL
 ## scan – full diagnosis
 
 ```bat
-pc-doctor.cmd scan --psu-watt 850 --psu-model "Tecnoware 850W"
+pc-doctor.cmd scan
 ```
 
 Runs 9 checks one after another (about 30 seconds; several minutes with `--deep`).
@@ -52,8 +67,8 @@ Runs 9 checks one after another (about 30 seconds; several minutes with `--deep`
 | `--days` | 90 | days of event log to analyze |
 | `--deep` | off | also runs SFC (full Windows file verification, 10-15 min, admin required) |
 | `--defender-scan` | off | starts a Microsoft Defender quick scan |
-| `--psu-watt` | 0 | power supply wattage |
-| `--psu-model` | empty | power supply brand and model |
+| `--psu-watt` | saved | power supply wattage (optional, see [The power supply](#the-power-supply)) |
+| `--psu-model` | saved | brand and model (optional) |
 | `--no-software` | off | skips the software checks |
 
 ### The checks
@@ -120,8 +135,8 @@ Runs check 5 only and also prints the full list of events, blue screens and mini
 ## psu – power supply analysis
 
 ```bat
-pc-doctor.cmd psu --psu-watt 850 --psu-model "Tecnoware 850W"
-pc-doctor.cmd psu --psu-watt 850 --hwinfo C:\Users\<name>\Documents\power.CSV
+pc-doctor.cmd psu
+pc-doctor.cmd psu --hwinfo C:\Users\<name>\Documents\power.CSV
 ```
 
 No software can read the power supply directly: the command infers its condition from power draw,
@@ -129,8 +144,8 @@ voltages and sudden shutdowns.
 
 | Option | Default | Meaning |
 |---|---|---|
-| `--psu-watt` | 0 | power supply wattage |
-| `--psu-model` | empty | brand and model |
+| `--psu-watt` | saved | power supply wattage (optional, see [The power supply](#the-power-supply)) |
+| `--psu-model` | saved | brand and model (optional) |
 | `--hwinfo` | none | HWiNFO CSV log to analyze |
 | `--days` | 90 | days of event log to analyze |
 
@@ -245,7 +260,7 @@ throttling. Works with both `monitor` and `stress` logs.
 ## full – everything at once
 
 ```bat
-pc-doctor.cmd full --minutes 20 --deep --psu-watt 850
+pc-doctor.cmd full --minutes 20 --deep
 ```
 
 Runs `scan` and then `stress all` and puts everything in **a single report**. Accepts the options of both.

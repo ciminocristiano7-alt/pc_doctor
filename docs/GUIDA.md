@@ -29,6 +29,21 @@ pc-doctor.cmd <comando> --help    :: opzioni di un comando
 
 In **PowerShell** i comandi vanno scritti con `.\` davanti: `.\pc-doctor.cmd --help`.
 
+### L'alimentatore
+
+Windows non può leggere l'alimentatore. La prima volta che serve, pc-doctor lo **chiede** (marca/modello e watt:
+se il nome contiene i watt, come "Tecnoware 850W", li ricava da solo) e lo **ricorda** in
+`%USERPROFILE%\pc-doctor-data\config.properties`. Se l'alimentatore è collegato via USB (Corsair HXi/RMi/AXi, NZXT…)
+e LibreHardwareMonitor è aperto, viene **rilevato automaticamente**.
+
+```bat
+pc-doctor.cmd config                                    :: mostra l'alimentatore salvato
+pc-doctor.cmd config --psu-model "Corsair RM1000x"      :: cambia alimentatore (watt ricavati dal nome)
+pc-doctor.cmd config --psu-watt 1000 --psu-model "..."  :: watt espliciti
+pc-doctor.cmd config --detect                           :: dimentica e rileva/chiedi di nuovo
+```
+
+Le opzioni `--psu-watt` e `--psu-model` di `scan` e `psu` restano disponibili e aggiornano il valore salvato.
 Al primo avvio lo script compila il progetto (serve internet, 1-2 minuti). Serve il **JDK 21** o superiore:
 se trova solo un JRE o una versione vecchia, propone di installare il JDK con winget.
 
@@ -40,7 +55,7 @@ Start → `cmd` → tasto destro → *Esegui come amministratore*, poi `cd %USER
 ## scan – diagnosi completa
 
 ```bat
-pc-doctor.cmd scan --psu-watt 850 --psu-model "Tecnoware 850W"
+pc-doctor.cmd scan
 ```
 
 Esegue 9 controlli uno dopo l'altro (circa 30 secondi; diversi minuti con `--deep`).
@@ -50,8 +65,8 @@ Esegue 9 controlli uno dopo l'altro (circa 30 secondi; diversi minuti con `--dee
 | `--days` | 90 | giorni di registro eventi da analizzare |
 | `--deep` | no | esegue anche SFC (verifica completa dei file di Windows, 10-15 min, serve admin) |
 | `--defender-scan` | no | avvia una scansione rapida di Microsoft Defender |
-| `--psu-watt` | 0 | watt dell'alimentatore |
-| `--psu-model` | vuoto | marca e modello dell'alimentatore |
+| `--psu-watt` | salvato | watt dell'alimentatore (facoltativo, vedi [L'alimentatore](#lalimentatore)) |
+| `--psu-model` | salvato | marca e modello (facoltativo) |
 | `--no-software` | no | salta i controlli software |
 
 ### I controlli
@@ -118,8 +133,8 @@ Esegue solo il controllo n. 5 e mostra anche l'elenco completo di eventi, scherm
 ## psu – analisi dell'alimentatore
 
 ```bat
-pc-doctor.cmd psu --psu-watt 850 --psu-model "Tecnoware 850W"
-pc-doctor.cmd psu --psu-watt 850 --hwinfo C:\Users\<nome>\Documents\power.CSV
+pc-doctor.cmd psu
+pc-doctor.cmd psu --hwinfo C:\Users\<nome>\Documents\power.CSV
 ```
 
 Nessun software può leggere direttamente l'alimentatore: il comando ne deduce lo stato da consumi,
@@ -127,8 +142,8 @@ tensioni e spegnimenti improvvisi.
 
 | Opzione | Default | Significato |
 |---|---|---|
-| `--psu-watt` | 0 | watt dell'alimentatore |
-| `--psu-model` | vuoto | marca e modello |
+| `--psu-watt` | salvato | watt dell'alimentatore (facoltativo, vedi [L'alimentatore](#lalimentatore)) |
+| `--psu-model` | salvato | marca e modello (facoltativo) |
 | `--hwinfo` | nessuno | log CSV di HWiNFO da analizzare |
 | `--days` | 90 | giorni di registro eventi da analizzare |
 
@@ -243,7 +258,7 @@ temperature e throttling. Funziona con i log di `monitor` e di `stress`.
 ## full – tutto insieme
 
 ```bat
-pc-doctor.cmd full --minutes 20 --deep --psu-watt 850
+pc-doctor.cmd full --minutes 20 --deep
 ```
 
 Esegue `scan` e poi `stress all` e mette tutto in **un unico report**. Accetta le opzioni di entrambi.

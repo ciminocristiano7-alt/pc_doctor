@@ -13,6 +13,8 @@ import com.pcdoctor.core.CheckRunner;
 import com.pcdoctor.core.DiagnosticCheck;
 import com.pcdoctor.core.Report;
 import com.pcdoctor.hwinfo.HwinfoPowerCheck;
+import com.pcdoctor.sensors.PowerSupply;
+import com.pcdoctor.util.Config;
 import com.pcdoctor.monitor.MonitorLogAnalyzer;
 import com.pcdoctor.monitor.SensorMonitor;
 import com.pcdoctor.monitor.ThermalEvaluator;
@@ -46,7 +48,7 @@ import java.util.concurrent.Callable;
 @Command(name = "pc-doctor", mixinStandardHelpOptions = true, version = "pc-doctor 0.1.0",
         description = "Diagnostica hardware e software a 360 gradi per Windows.",
         subcommands = {PcDoctor.Scan.class, PcDoctor.Crashes.class, PcDoctor.Psu.class, PcDoctor.Stress.class,
-                PcDoctor.Monitor.class, PcDoctor.AnalyzeLog.class, PcDoctor.Full.class})
+                PcDoctor.Monitor.class, PcDoctor.AnalyzeLog.class, PcDoctor.Full.class, PcDoctor.ConfigCommand.class})
 public class PcDoctor implements Runnable {
 
     private static final DateTimeFormatter FILE_TS = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
@@ -68,9 +70,9 @@ public class PcDoctor implements Runnable {
         boolean deep;
         @Option(names = "--defender-scan", description = "Avvia una scansione rapida di Microsoft Defender")
         boolean defenderScan;
-        @Option(names = "--psu-watt", defaultValue = "0", description = "Watt dell'alimentatore (es. 850)")
+        @Option(names = "--psu-watt", defaultValue = "0", description = "Watt dell'alimentatore (facoltativo: viene ricordato)")
         int psuWatt;
-        @Option(names = "--psu-model", defaultValue = "", description = "Marca/modello dell'alimentatore")
+        @Option(names = "--psu-model", defaultValue = "", description = "Marca/modello dell'alimentatore (facoltativo: viene ricordato)")
         String psuModel;
         @Option(names = "--no-software", description = "Salta i controlli software")
         boolean noSoftware;
@@ -80,7 +82,7 @@ public class PcDoctor implements Runnable {
                     new HardwareInventoryCheck(),
                     new GpuCheck(),
                     new DiskHealthCheck(),
-                    new PowerBudgetCheck(psuWatt, psuModel),
+                    new PowerBudgetCheck(PowerSupply.resolve(psuWatt, psuModel, true, System.out)),
                     new CrashHistoryCheck(days)));
             if (!noSoftware) {
                 checks.addAll(List.of(
@@ -154,9 +156,9 @@ public class PcDoctor implements Runnable {
             "Analisi dell'alimentatore: consumi stimati, spegnimenti improvvisi e, con --hwinfo, tensioni",
             "e cali registrati da HWiNFO (ideale durante OCCT Power o un gioco pesante)."})
     static class Psu implements Callable<Integer> {
-        @Option(names = "--psu-watt", defaultValue = "0", description = "Watt dell'alimentatore (es. 850)")
+        @Option(names = "--psu-watt", defaultValue = "0", description = "Watt dell'alimentatore (facoltativo: viene ricordato)")
         int psuWatt;
-        @Option(names = "--psu-model", defaultValue = "", description = "Marca/modello dell'alimentatore")
+        @Option(names = "--psu-model", defaultValue = "", description = "Marca/modello dell'alimentatore (facoltativo: viene ricordato)")
         String psuModel;
         @Option(names = "--hwinfo", description = "Log CSV di HWiNFO da analizzare")
         Path hwinfo;
@@ -166,10 +168,10 @@ public class PcDoctor implements Runnable {
         @Override
         public Integer call() throws IOException {
             Report report = new Report();
-            List<DiagnosticCheck> checks = new ArrayList<>(List.of(
-                    new PowerBudgetCheck(psuWatt, psuModel), new CrashHistoryCheck(days)));
+            PowerSupply psu = PowerSupply.resolve(psuWatt, psuModel, true, System.out);
+            List<DiagnosticCheck> checks = new ArrayList<>(List.of(new PowerBudgetCheck(psu), new CrashHistoryCheck(days)));
             if (hwinfo != null) {
-                checks.add(new HwinfoPowerCheck(hwinfo, psuWatt));
+                checks.add(new HwinfoPowerCheck(hwinfo, psu.watts()));
             } else {
                 System.out.println("Suggerimento: aggiungi --hwinfo <file.CSV> con un log di HWiNFO registrato sotto carico");
                 System.out.println("per analizzare le tensioni dell'alimentatore.");
@@ -180,6 +182,41 @@ public class PcDoctor implements Runnable {
             Path html = FileReport.write(report, DataDir.reports());
             System.out.println();
             System.out.println("Report completo: " + html);
+            return 0;
+        }
+    }
+
+    @Command(name = "config", description = {
+            "Mostra o modifica le impostazioni ricordate (alimentatore).",
+            "Senza opzioni mostra i valori attuali; con --detect prova a rilevare l'alimentatore."})
+    static class ConfigCommand implements Callable<Integer> {
+        @Option(names = "--psu-watt", defaultValue = "0", description = "Watt dell'alimentatore")
+        int psuWatt;
+        @Option(names = "--psu-model", defaultValue = "", description = "Marca/modello dell'alimentatore")
+        String psuModel;
+        @Option(names = "--detect", description = "Dimentica l'alimentatore salvato e lo rileva o lo richiede di nuovo")
+        boolean detect;
+        @Option(names = "--reset", description = "Cancella tutte le impostazioni salvate")
+        boolean reset;
+
+        @Override
+        public Integer call() {
+            Config config = Config.load();
+            if (reset || detect) {
+                config.clear();
+                config.save();
+                System.out.println(reset ? "Impostazioni cancellate." : "Alimentatore dimenticato, nuovo rilevamento:");
+            }
+            if (psuWatt > 0 || !psuModel.isBlank() || detect) {
+                PowerSupply psu = PowerSupply.resolve(psuWatt, psuModel, true, System.out);
+                if (!psu.known()) {
+                    System.out.println("Alimentatore non rilevato.");
+                }
+            }
+            config = Config.load();
+            System.out.println("File: " + config.file());
+            System.out.println("Alimentatore: " + config.get(Config.PSU_WATT).map(w -> w + " W").orElse("non impostato")
+                    + config.get(Config.PSU_MODEL).map(m -> " - " + m).orElse(""));
             return 0;
         }
     }

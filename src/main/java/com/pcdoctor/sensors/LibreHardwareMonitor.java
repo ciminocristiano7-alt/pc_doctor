@@ -101,6 +101,12 @@ public final class LibreHardwareMonitor {
         return result;
     }
 
+    /** Nome dell'alimentatore, se è un modello collegato via USB che LibreHardwareMonitor riconosce. */
+    public Optional<String> powerSupplyName() {
+        return sensors.stream().filter(s -> lower(s.hardwareType()).contains("psu")).map(Sensor::hardwareName)
+                .filter(n -> !n.isBlank()).findFirst();
+    }
+
     /** Valore del primo sensore del tipo indicato il cui nome contiene una delle parole, nell'ordine. */
     private static double find(List<Sensor> list, String type, String... names) {
         for (String n : names) {

@@ -13,7 +13,7 @@ Nato per capire perché un PC si riavvia da solo mentre si gioca.
 |---|---|
 | **Crash** | Analizza il registro eventi: Kernel-Power 41, schermate blu (con codice e significato), errori hardware WHEA, reset del driver video. Incrocia i dati e propone la causa probabile. |
 | **Hardware** | CPU, scheda madre, età del BIOS, moduli RAM (kit misti, 4 banchi con XMP), GPU **NVIDIA, AMD e Intel** (temperatura, consumo, power limit, link PCIe, throttling), salute dei dischi (SMART), spazio libero. |
-| **Alimentazione** | Stima consumo sostenuto e picchi transitori della GPU e li confronta con l'alimentatore (`--psu-watt`, `--psu-model`). Il comando `psu` analizza anche i log di HWiNFO: tensioni rispetto alle tolleranze ATX, cali sotto carico, spegnimenti a pieno carico. |
+| **Alimentazione** | Stima consumo sostenuto e picchi transitori della GPU e li confronta con l'alimentatore, che viene chiesto una sola volta e ricordato (o rilevato da solo se è un modello USB come i Corsair HXi/RMi). Il comando `psu` analizza anche i log di HWiNFO: tensioni rispetto alle tolleranze ATX, cali sotto carico, spegnimenti a pieno carico. |
 | **Stress test** | CPU (calcoli verificati: un risultato sbagliato significa instabilità), RAM (schemi di bit scritti e riletti), disco (scrittura/lettura verificata), oppure tutti insieme per caricare l'intero sistema. |
 | **Monitor** | Registra ogni secondo carico, frequenze, temperature e consumo su CSV, scrivendo subito su disco: dopo un riavvio improvviso si vedono gli ultimi valori prima del crash. |
 | **Software** | Integrità di Windows (DISM, SFC con `--deep`), dispositivi con errori, aggiornamenti, Microsoft Defender (stato, minacce, scansione), firewall, programmi in avvio e processi non firmati in cartelle a rischio. |
@@ -34,9 +34,10 @@ Nato per capire perché un PC si riavvia da solo mentre si gioca.
 In **PowerShell** scrivi `.\pc-doctor.cmd` (con `.\` davanti); nel Prompt dei comandi basta `pc-doctor.cmd`.
 
 ```bat
-pc-doctor.cmd scan --psu-watt 850 --psu-model "Tecnoware 850W"
+pc-doctor.cmd scan
 pc-doctor.cmd crashes
-pc-doctor.cmd psu --psu-watt 850 --hwinfo C:\percorso\log_hwinfo.CSV
+pc-doctor.cmd psu --hwinfo C:\percorso\log_hwinfo.CSV
+pc-doctor.cmd config                       :: alimentatore salvato (--detect per rilevarlo di nuovo)
 pc-doctor.cmd stress all --minutes 15
 pc-doctor.cmd monitor
 pc-doctor.cmd analyze-log
