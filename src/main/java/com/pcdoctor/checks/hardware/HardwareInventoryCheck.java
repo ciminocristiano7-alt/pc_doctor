@@ -56,12 +56,16 @@ public class HardwareInventoryCheck implements DiagnosticCheck {
     private void checkBios(Report report, String date) {
         try {
             LocalDate biosDate = LocalDate.parse(date);
-            if (biosDate.isBefore(LocalDate.now().minusYears(2))) {
-                report.add(Finding.warning("Scheda madre", "BIOS datato (" + date + ")",
-                        "I BIOS recenti correggono stabilità, compatibilità RAM e gestione energetica (AGESA per AMD).",
-                        "Aggiornare il BIOS dal sito del produttore della scheda madre (con CPU e RAM a impostazioni di fabbrica)."));
+            // Le schede di qualche anno ricevono aggiornamenti di rado: l'ultimo BIOS disponibile può avere 2 anni.
+            if (biosDate.isBefore(LocalDate.now().minusYears(4))) {
+                report.add(Finding.warning("Scheda madre", "BIOS molto vecchio (" + date + ")",
+                        "I BIOS recenti correggono stabilità, compatibilità RAM, gestione energetica e bug noti "
+                                + "(es. gli scatti dell'fTPM sui Ryzen, corretti nel 2022).",
+                        "Controllare sul sito del produttore se esiste una versione più recente e aggiornare "
+                                + "(con CPU e RAM a impostazioni di fabbrica; sospendere prima BitLocker)."));
             } else {
-                report.add(Finding.ok("Scheda madre", "BIOS recente (" + date + ")", ""));
+                report.add(Finding.info("Scheda madre", "BIOS del " + date,
+                        "Verificare ogni tanto sul sito del produttore se esiste una versione più recente."));
             }
         } catch (RuntimeException e) {
             report.add(Finding.info("Scheda madre", "Data BIOS non leggibile", date));
